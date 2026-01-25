@@ -19,7 +19,8 @@ class XieQuManager:
 
     def set_whitelist(self, ip):
         """添加当前机器 IP 到白名单"""
-        url = f"{self.base_url}/IpIplist.aspx?type=add&uid={self.uid}&ukey={self.ukey}&ip={ip}"
+        url = f"{self.base_url}/IpWhiteList.aspx?uid={self.uid}&ukey={self.ukey}&act=add&ip={ip}&meno=1#"
+        
         try:
             res = requests.get(url, timeout=10)
             if "success" in res.text.lower() or "已存在" in res.text:
@@ -34,7 +35,8 @@ class XieQuManager:
 
     def del_whitelist(self, ip):
         """从白名单中删除指定 IP"""
-        url = f"{self.base_url}/IpIplist.aspx?type=del&uid={self.uid}&ukey={self.ukey}&ip={ip}"
+        url = f"{self.base_url}/IpWhiteList.aspx?uid={self.uid}&ukey={self.ukey}&act=del&ip={ip}"
+
         try:
             res = requests.get(url, timeout=10)
             self.log(f"删除白名单响应: {res.text}", "INFO")
@@ -51,15 +53,15 @@ class XieQuManager:
         """
         # 注意：这里的 lineID, pt, dev_type 等参数需根据你购买的套餐 API 链接调整
         # 下面是一个常见的获取接口示例
-        url = f"http://api.xiequ.cn/VGetIp.aspx?uid={self.uid}&ukey={self.ukey}&num={count}&type=2&pack=0&ts=0&port=1&pro=0&region=0"
-        
+        url = f"http://api.xiequ.cn/VAD/GetIp.aspx?act=get&uid={self.uid}&vkey={self.ukey}&num={count}&time=30&plat=0&re=1&type=0&so=1&ow=1&spl=1&addr=&db=1"
         try:
             res = requests.get(url, timeout=10)
             data = res.json()
+
             if data.get("code") == 0:
                 proxy_list = []
                 for item in data.get("data", []):
-                    ip_port = f"{item['ip']}:{item['port']}"
+                    ip_port = f"{item['IP']}:{item['Port']}"
                     proxy_list.append(f"{protocol}://{ip_port}")
                 self.log(f"成功获取 {len(proxy_list)} 个代理 IP", "SUCCESS")
                 return proxy_list
