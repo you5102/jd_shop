@@ -26,4 +26,4 @@ jobs:
         env:
           # 从 Secrets 获取加密信息
           PROXY_INFO: ${{ secrets.PROXY_INFO }} # Base64 编码后的账号数组
-        run: python -u jd_task.py
+        run: python -u jd_fetch_playwright.py
