@@ -1,4 +1,4 @@
-name: JD Multi-Shop Check
+name: JD Realtime Task
 
 on:
   schedule:
@@ -23,4 +23,5 @@ jobs:
           pip install requests fake-useragent
 
       - name: Run Script
-        run: python jd_fetch.py
+        # 使用 python -u 强制开启无缓冲模式，确保日志实时打印到 Action 控制台
+        run: python -u jd_fetch.py
