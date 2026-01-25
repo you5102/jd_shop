@@ -61,7 +61,7 @@ def run_task():
         log("未获取到代理配置信息", "ERROR")
         return
 
-    xq = XieQuManager(PROXY_INFO.get("uid"), PROXY_INFO.get("ukey"))
+    xq = XieQuManager(PROXY_INFO.get("uid"), PROXY_INFO.get("ukey"), PROXY_INFO.get("vkey"))
     
     vid_file = "vid.json"
     if not os.path.exists(vid_file):
