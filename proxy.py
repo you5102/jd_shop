@@ -11,6 +11,7 @@ class XieQuManager:
         """
         self.uid = uid
         self.ukey = ukey
+        self.vkey = vkey
         self.base_url = "http://op.xiequ.cn"
 
     def log(self, msg, level="INFO"):
