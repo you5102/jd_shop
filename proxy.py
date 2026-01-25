@@ -22,7 +22,7 @@ class XieQuManager:
     def set_whitelist(self, ip):
         """添加当前机器 IP 到白名单"""
         url = f"{self.base_url}/IpWhiteList.aspx?uid={self.uid}&ukey={self.ukey}&act=add&ip={ip}&meno=1#"
-        self.log(f"添加白名单 url: {url}", "INFO")
+        #self.log(f"添加白名单 url: {url}", "INFO")
         try:
             res = requests.get(url, timeout=10)
             self.log(f"添加白名单 res: {res}", "INFO")
