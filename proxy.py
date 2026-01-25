@@ -3,10 +3,11 @@ import time
 import sys
 
 class XieQuManager:
-    def __init__(self, uid, ukey):
+    def __init__(self, uid, ukey, vkey):
         """
         :param uid: 携趣用户ID
         :param ukey: 携趣用户Key
+        :param vkey: 携趣用户Key
         """
         self.uid = uid
         self.ukey = ukey
