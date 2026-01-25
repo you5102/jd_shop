@@ -6,7 +6,7 @@ import random
 import base64
 import sys
 from playwright.sync_api import sync_playwright
-from xiequ_proxy import XieQuManager # 引用刚才写的代理类
+from proxy import XieQuManager # 引用刚才写的代理类
 
 # ================= 配置区 =================
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
