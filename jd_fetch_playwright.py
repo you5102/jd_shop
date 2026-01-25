@@ -11,11 +11,12 @@ from proxy import XieQuManager
 # ================= 配置区 =================
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
 PROXY_REFRESH_SECONDS = 25  # 每25秒更换一次IP
+RUN_DURATION_MINUTES = 10   # 设定运行时长（分钟），到时间后自动停止
 # =========================================
 
 def log(msg, level="INFO"):
     timestamp = time.strftime("%H:%M:%S", time.localtime())
-    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "PROXY": "🌐"}
+    icons = {"INFO": "ℹ️", "SUCCESS": "✅", "ERROR": "❌", "WARN": "⚠️", "PROXY": "🌐", "TIMER": "⏱️"}
     print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
 def get_decoded_account():
@@ -33,23 +34,20 @@ def get_decoded_account():
 def create_new_proxy_context(p, xq):
     """获取新IP，设白名单，并返回新的浏览器上下文"""
     my_ip = xq.get_current_public_ip()
-    log(f"当前ip: {my_ip}", "ERROR")
     # 设置白名单
     if not xq.set_whitelist(my_ip):
         log("白名单授权失败", "ERROR")
-        return None, None
+        return None, None, my_ip
 
     # 获取代理 IP
     proxies = xq.get_proxy(count=1)
     if not proxies:
         log("未能获取到新代理", "ERROR")
-        return None, None
+        return None, None, my_ip
     
     proxy_server = proxies[0]
     log(f"🔄 已更换新代理: {proxy_server}", "PROXY")
 
-    # 注意：Playwright 无法动态修改 context 代理，必须启动新 context 或新 browser
-    # 这里我们启动一个新的浏览器实例以确保代理完全隔离
     browser = p.chromium.launch(headless=True, proxy={"server": proxy_server})
     context = browser.new_context(
         user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
@@ -72,35 +70,43 @@ def run_task():
     with open(vid_file, "r") as f:
         vender_ids = json.load(f)
 
+    # 记录脚本开始时间
+    script_start_time = time.time()
     last_proxy_time = 0
     browser = None
     context = None
     current_white_ip = None
+
+    log(f"设定运行时长为: {RUN_DURATION_MINUTES} 分钟", "TIMER")
 
     with sync_playwright() as p:
         try:
             for vid in vender_ids:
                 now = time.time()
                 
-                # --- 检查是否需要更换代理 (每25秒) ---
+                # --- 1. 运行时长检查 ---
+                elapsed_minutes = (now - script_start_time) / 60
+                if elapsed_minutes >= RUN_DURATION_MINUTES:
+                    log(f"已达到设定时长 ({RUN_DURATION_MINUTES}分钟)，脚本准备停止...", "TIMER")
+                    break
+
+                # --- 2. 检查是否需要更换代理 (每25秒) ---
                 if now - last_proxy_time > PROXY_REFRESH_SECONDS:
-                    # 清理旧环境
                     if browser:
                         browser.close()
                     if current_white_ip:
                         xq.del_whitelist(current_white_ip)
                     
-                    # 创建新环境
                     browser, context, current_white_ip = create_new_proxy_context(p, xq)
                     if not browser:
                         log("环境创建失败，尝试跳过此轮", "ERROR")
                         continue
                     last_proxy_time = time.time()
 
-                # --- 执行业务逻辑 ---
+                # --- 3. 执行业务逻辑 ---
                 page = context.new_page()
                 try:
-                    log(f"正在处理店铺: {vid}", "INFO")
+                    log(f"正在处理店铺: {vid} (已运行 {elapsed_minutes:.1f}min)", "INFO")
                     page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", wait_until="networkidle", timeout=20000)
                     
                     fetch_script = f"""
@@ -130,13 +136,14 @@ def run_task():
                 finally:
                     page.close()
                 
-                # 间隔，避免过于频繁
                 time.sleep(1)
 
         finally:
+            # 无论是因为跑完列表还是时间到了，都执行清理
             if browser: browser.close()
             if current_white_ip: xq.del_whitelist(current_white_ip)
-            log("任务结束，清理完成", "INFO")
+            total_time = (time.time() - script_start_time) / 60
+            log(f"任务结束，总运行时间: {total_time:.1f} 分钟", "INFO")
 
 if __name__ == "__main__":
     run_task()
