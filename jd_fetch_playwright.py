@@ -11,7 +11,7 @@ from proxy import XieQuManager
 # ================= 配置区 =================
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
 PROXY_REFRESH_SECONDS = 25  # 每25秒更换一次IP
-RUN_DURATION_MINUTES = 10   # 设定运行时长（分钟），到时间后自动停止
+RUN_DURATION_MINUTES = 5   # 设定运行时长（分钟），到时间后自动停止
 # =========================================
 
 def log(msg, level="INFO"):
