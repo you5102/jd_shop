@@ -1,8 +1,8 @@
-name: JD Playwright Task
+name: JD Playwright with Proxy
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 jobs:
@@ -17,13 +17,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install
         run: |
-          python -m pip install --upgrade pip
-          pip install playwright
-          # 安装 Chromium 浏览器内核
+          pip install playwright requests
           playwright install chromium
 
-      - name: Run Script
-        # 使用 -u 保证日志实时输出
-        run: python -u jd_fetch_playwright.py
+      - name: Execute Script
+        env:
+          # 从 Secrets 获取加密信息
+          PROXY_INFO: ${{ secrets.PROXY_INFO }} # Base64 编码后的账号数组
+        run: python -u jd_task.py
