@@ -33,7 +33,7 @@ def get_decoded_account():
 def create_new_proxy_context(p, xq):
     """获取新IP，设白名单，并返回新的浏览器上下文"""
     my_ip = xq.get_current_public_ip()
-    
+    log(f"当前ip: {my_ip}", "ERROR")
     # 设置白名单
     if not xq.set_whitelist(my_ip):
         log("白名单授权失败", "ERROR")
