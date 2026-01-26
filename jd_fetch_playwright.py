@@ -47,22 +47,37 @@ def get_decoded_account():
 def create_new_proxy_context(p, xq):
     """获取新IP，设白名单，并返回新的浏览器上下文"""
     try:
-        # 1. 强制频率检查
+        # 1. 严格检查间隔，避免触发 111 Connection Refused
         wait_for_api_interval()
 
-        # 2. 获取并设置白名单
-        my_ip = xq.get_current_public_ip()
-        if not xq.set_whitelist(my_ip):
-            log("白名单授权失败", "ERROR")
+        # 2. 尝试获取公网IP (这本身也是一次网络请求)
+        try:
+            my_ip = xq.get_current_public_ip()
+        except Exception as e:
+            log(f"获取公网IP失败 (网络异常): {e}", "ERROR")
             return None, None, None
 
-        # 3. 获取代理 IP
-        proxies = xq.get_proxy(count=1)
-        if not proxies:
-            log("未能获取到新代理", "WARN")
-            return None, None, my_ip
+        # 3. 设置白名单
+        if not xq.set_whitelist(my_ip):
+            log("白名单授权失败 (接口返回错误)", "ERROR")
+            return None, None, None
+        
+        # 白名单设置后强制额外等待 2 秒，确保代理商后端同步完成
+        time.sleep(2)
+
+        # 4. 获取代理 IP (最容易报错的地方)
+        try:
+            proxies = xq.get_proxy(count=1)
+            if not proxies:
+                log("代理库空或获取失败", "WARN")
+                return None, None, my_ip
+        except Exception as e:
+            # 这里会捕获 Connection refused 等网络层错误
+            log(f"获取代理接口异常 (可能被限频): {e}", "ERROR")
+            return None, None, None
         
         proxy_server = proxies[0]
+        # ... 后续启动浏览器逻辑保持不变 ...
         log(f"🔄 已更换新代理: {proxy_server}", "PROXY")
 
         browser = p.chromium.launch(headless=True, proxy={"server": proxy_server})
