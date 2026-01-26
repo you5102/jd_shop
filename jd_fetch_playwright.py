@@ -10,7 +10,7 @@ from proxy import XieQuManager
 
 # ================= 配置区 =================
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
-PROXY_REFRESH_SECONDS = 35  # 略大于30秒，确保符合频率要求
+PROXY_REFRESH_SECONDS = 45  # 略大于30秒，确保符合频率要求
 RUN_DURATION_MINUTES = 5
 MAX_CONSECUTIVE_ERRORS = 3   # 最大连续错误次数
 # =========================================
@@ -47,47 +47,53 @@ def get_decoded_account():
 def create_new_proxy_context(p, xq):
     """获取新IP，设白名单，并返回新的浏览器上下文"""
     try:
-        # 1. 严格检查间隔，避免触发 111 Connection Refused
+        # 1. 严格检查 API 调用总间隔 (确保大于30秒)
         wait_for_api_interval()
 
-        # 2. 尝试获取公网IP (这本身也是一次网络请求)
+        # 2. 获取本地公网IP
         try:
             my_ip = xq.get_current_public_ip()
         except Exception as e:
-            log(f"获取公网IP失败 (网络异常): {e}", "ERROR")
+            log(f"无法连接到公网IP检测服务: {e}", "ERROR")
             return None, None, None
 
         # 3. 设置白名单
         if not xq.set_whitelist(my_ip):
-            log("白名单授权失败 (接口返回错误)", "ERROR")
+            log("白名单设置接口异常", "ERROR")
             return None, None, None
         
-        # 白名单设置后强制额外等待 2 秒，确保代理商后端同步完成
-        time.sleep(2)
+        # --- 关键修改：白名单设置后，强制等待 5 秒 ---
+        # 即使 wait_for_api_interval 过了，也要给服务器同步白名单的时间
+        time.sleep(5)
 
-        # 4. 获取代理 IP (最容易报错的地方)
+        # 4. 获取代理 IP
         try:
             proxies = xq.get_proxy(count=1)
             if not proxies:
-                log("代理库空或获取失败", "WARN")
+                # 记录调用时间，避免下一次循环立即执行
+                global last_api_call_time
+                last_api_call_time = time.time()
+                log("代理库目前无可用IP", "WARN")
                 return None, None, my_ip
         except Exception as e:
-            # 这里会捕获 Connection refused 等网络层错误
-            log(f"获取代理接口异常 (可能被限频): {e}", "ERROR")
+            log(f"获取代理接口拒绝连接 (Errno 111): {e}", "ERROR")
+            # 出错后强制让出更多冷却时间
+            last_api_call_time = time.time() + 10 
             return None, None, None
         
         proxy_server = proxies[0]
-        # ... 后续启动浏览器逻辑保持不变 ...
         log(f"🔄 已更换新代理: {proxy_server}", "PROXY")
 
+        # 启动浏览器
         browser = p.chromium.launch(headless=True, proxy={"server": proxy_server})
         context = browser.new_context(
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
             viewport={'width': 390, 'height': 844}
         )
         return browser, context, my_ip
+
     except Exception as e:
-        log(f"创建代理环境时发生异常: {e}", "ERROR")
+        log(f"创建环境发生未知异常: {e}", "ERROR")
         return None, None, None
 
 def run_task():
