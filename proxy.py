@@ -56,7 +56,7 @@ class XieQuManager:
         """
         # 注意：这里的 lineID, pt, dev_type 等参数需根据你购买的套餐 API 链接调整
         # 下面是一个常见的获取接口示例
-        url = f"http://api.xiequ.cn/VAD/GetIp.aspx?act=get&uid={self.uid}&vkey={self.ukey}&num={count}&time=30&plat=0&re=1&type=0&so=1&ow=1&spl=1&addr=&db=1"
+        url = f"http://api.xiequ.cn/VAD/GetIp.aspx?act=get&uid={self.uid}&vkey={self.vkey}&num={count}&time=30&plat=0&re=1&type=0&so=1&ow=1&spl=1&addr=&db=1"
         try:
             res = requests.get(url, timeout=10)
             data = res.json()
