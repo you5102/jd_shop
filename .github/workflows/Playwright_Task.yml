@@ -1,29 +1,39 @@
-name: JD Playwright with Proxy
-
+name: JD Shop Scanner
 on:
-  schedule:
-    - cron: '0 */4 * * *'
   workflow_dispatch:
+  schedule:
+    - cron: '0 */1 * * *' # 每小时运行一次（可选）
 
 jobs:
   run-task:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
-      - name: Install
+      - name: Install dependencies
         run: |
-          pip install playwright requests
+          pip install requests playwright playwright-stealth
           playwright install chromium
 
-      - name: Execute Script
+      - name: Network Connectivity Check
+        run: |
+          echo "正在检测 GitHub 运行机与携趣 API 的连通性..."
+          CHECK_CODE=$(curl -I -s --connect-timeout 5 http://api.xiequ.cn/VAD/GetIp.aspx -o /dev/null -w "%{http_code}")
+          if [ "$CHECK_CODE" -eq "000" ]; then
+            echo "❌ 严重错误: 当前 GitHub IP 已被携趣服务器封锁 (Connection Refused)。"
+            echo "请尝试手动重新运行 (Re-run) 任务以更换运行环境。"
+            exit 1
+          else
+            echo "✅ 连通性测试通过 (HTTP Code: $CHECK_CODE)"
+          fi
+
+      - name: Run Script
         env:
-          # 从 Secrets 获取加密信息
-          PROXY_INFO: ${{ secrets.PROXY_INFO }} # Base64 编码后的账号数组
+          PROXY_INFO: ${{ secrets.PROXY_INFO }} # 请在 GitHub Secrets 中配置
         run: python -u jd_fetch_playwright.py
