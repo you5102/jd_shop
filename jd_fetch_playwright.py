@@ -6,7 +6,12 @@ import base64
 import sys
 import requests
 from playwright.sync_api import sync_playwright
+# 修改导入部分
 from playwright_stealth import stealth_sync
+
+# ... 在页面初始化的地方使用 ...
+page = context.new_page()
+stealth_sync(page) # 直接调用
 
 # ================= 配置区 =================
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
