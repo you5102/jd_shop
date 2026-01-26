@@ -6,12 +6,13 @@ import base64
 import sys
 import requests
 from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 
 # ================= 配置区 =================
 TARGET_PATTERN = "2PAAf74aG3D61qvfKUM5dxUssJQ9"
-PROXY_REFRESH_SECONDS = 40  # 建议略大于30，给业务留出执行时间
-RUN_DURATION_MINUTES = 5    # 设定运行时长（分钟）
-MAX_CONSECUTIVE_ERRORS = 3   # 连续报错最大次数
+PROXY_REFRESH_SECONDS = 45  # 刷新频率（必须 > 30s）
+RUN_DURATION_MINUTES = 5    # 脚本运行总时长
+MAX_CONSECUTIVE_ERRORS = 3   # 连续核心报错停止阈值
 # =========================================
 
 class XieQuManager:
@@ -21,7 +22,7 @@ class XieQuManager:
         self.vkey = vkey
         self.base_url = "http://op.xiequ.cn"
         self.last_api_time = 0 
-        self.min_interval = 31  # 严格限制间隔时间（秒）
+        self.min_interval = 32  # 强制 API 间隔 32 秒（留 2s 缓冲）
 
     def log(self, msg, level="INFO"):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
@@ -29,16 +30,26 @@ class XieQuManager:
         print(f"[{timestamp}] {icons.get(level, '•')} {msg}", flush=True)
 
     def _wait_for_cooldown(self):
-        """强制 API 冷却逻辑，防止 Connection Refused"""
+        """核心：确保携趣 API 调用不违反频率限制"""
         now = time.time()
         elapsed = now - self.last_api_time
         if elapsed < self.min_interval:
             wait_sec = self.min_interval - elapsed
-            self.log(f"API 冷却中，需等待 {wait_sec:.1f} 秒...", "TIMER")
+            self.log(f"API 冷却中，需等待 {wait_sec:.1f} 秒以免触发封锁...", "TIMER")
             time.sleep(wait_sec)
         self.last_api_time = time.time()
 
+    def check_api_link(self):
+        """自检链路，防止因为被拒连而盲目重试"""
+        try:
+            res = requests.get(f"{self.base_url}/IpWhiteList.aspx", timeout=5)
+            return True
+        except requests.exceptions.ConnectionError:
+            self.log("链路检测失败：携趣 API 拒绝了 GitHub 的连接。请重新运行任务。", "ERROR")
+            return False
+
     def get_current_public_ip(self):
+        """获取 GitHub 运行机的公网 IP"""
         try:
             return requests.get("http://ifconfig.me/ip", timeout=5).text.strip()
         except:
@@ -51,12 +62,12 @@ class XieQuManager:
             res = requests.get(url, timeout=10)
             if "success" in res.text.lower() or "已存在" in res.text:
                 self.log(f"白名单设置成功: {ip}", "SUCCESS")
-                time.sleep(5)  # 额外给服务器 5 秒同步时间
+                time.sleep(5)  # 设置成功后额外给后端 5 秒同步时间
                 return True
             self.log(f"白名单设置失败: {res.text}", "ERROR")
             return False
         except Exception as e:
-            self.log(f"设置白名单异常: {e}", "ERROR")
+            self.log(f"请求白名单接口异常: {e}", "ERROR")
             return False
 
     def del_whitelist(self, ip):
@@ -75,15 +86,15 @@ class XieQuManager:
         try:
             res = requests.get(url, timeout=10)
             if res.status_code != 200:
-                self.log(f"代理接口响应 HTTP {res.status_code}", "ERROR")
+                self.log(f"代理接口 HTTP 状态异常: {res.status_code}", "ERROR")
                 return []
             data = res.json()
             if data.get("code") == 0:
                 return [f"http://{item['IP']}:{item['Port']}" for item in data.get("data", [])]
-            self.log(f"获取代理失败: {data.get('msg')}", "ERROR")
+            self.log(f"获取代理失败: {data.get('msg')}", "WARN")
             return []
         except Exception as e:
-            self.log(f"获取代理接口异常 (可能被拒连): {e}", "ERROR")
+            self.log(f"获取代理 API 网络错误 (可能被拒连): {e}", "ERROR")
             return []
 
 def get_decoded_account():
@@ -94,20 +105,24 @@ def get_decoded_account():
         accounts = json.loads(decoded_bytes.decode('utf-8'))
         return accounts[0] if isinstance(accounts, list) else accounts
     except Exception as e:
-        print(f"账号解码失败: {e}")
+        print(f"账号信息解码异常: {e}")
         return None
 
 def run_task():
     account = get_decoded_account()
     if not account:
-        print("❌ 未获取到有效代理配置")
+        print("❌ 错误：环境变量 PROXY_INFO 为空或无效。")
         return
 
     xq = XieQuManager(account.get("uid"), account.get("ukey"), account.get("vkey"))
     
+    # 链路预检
+    if not xq.check_api_link():
+        sys.exit(1)
+
     vid_file = "vid.json"
     if not os.path.exists(vid_file):
-        xq.log("vid.json 不存在", "ERROR")
+        xq.log("vid.json 文件缺失", "ERROR")
         return
     with open(vid_file, "r") as f:
         vender_ids = json.load(f)
@@ -117,26 +132,27 @@ def run_task():
     browser, context, current_white_ip = None, None, None
     consecutive_errors = 0
 
-    xq.log(f"任务启动，设定时长: {RUN_DURATION_MINUTES} 分钟", "TIMER")
+    xq.log(f"任务启动，预计运行 {RUN_DURATION_MINUTES} 分钟", "TIMER")
 
     with sync_playwright() as p:
         try:
             for vid in vender_ids:
                 now = time.time()
                 
-                # 1. 时长检查
+                # 1. 运行超时检查
                 if (now - script_start_time) / 60 >= RUN_DURATION_MINUTES:
-                    xq.log("达到预设时间，脚本准备停止", "TIMER")
+                    xq.log("运行时间已达上限，安全退出...", "TIMER")
                     break
 
-                # 2. 代理切换逻辑
+                # 2. 核心：代理/白名单切换逻辑
                 if now - last_proxy_time > PROXY_REFRESH_SECONDS:
                     if browser: browser.close()
                     if current_white_ip: xq.del_whitelist(current_white_ip)
                     
-                    xq.log("正在尝试切换代理环境...", "PROXY")
+                    xq.log("尝试获取并配置新代理 IP...", "PROXY")
                     current_white_ip = xq.get_current_public_ip()
                     
+                    success = False
                     if xq.set_whitelist(current_white_ip):
                         proxies = xq.get_proxy(count=1)
                         if proxies:
@@ -146,30 +162,26 @@ def run_task():
                                     user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
                                     viewport={'width': 390, 'height': 844}
                                 )
-                                xq.log(f"成功进入新代理环境: {proxies[0]}", "SUCCESS")
-                                consecutive_errors = 0 # 重置连续错误
+                                xq.log(f"代理环境就绪: {proxies[0]}", "SUCCESS")
+                                success = True
+                                consecutive_errors = 0
                                 last_proxy_time = time.time()
                             except Exception as e:
-                                xq.log(f"浏览器启动失败: {e}", "ERROR")
-                                browser = None
-                        else:
-                            browser = None
-                    else:
-                        browser = None
+                                xq.log(f"浏览器环境初始化失败: {e}", "ERROR")
 
-                    # 核心报错处理：如果环境创建失败
-                    if not browser:
+                    if not success:
                         consecutive_errors += 1
-                        xq.log(f"核心操作失败 ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS})", "ERROR")
+                        xq.log(f"连续核心失败计数: {consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}", "ERROR")
                         if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                            xq.log("连续 3 次核心操作失败，终止程序以保护账号/IP", "ERROR")
+                            xq.log("连续多次 API 异常，停止运行以防 IP/账号风险", "ERROR")
                             sys.exit(1)
                         continue
 
-                # 3. 业务逻辑
+                # 3. 业务逻辑处理
                 page = context.new_page()
+                stealth_sync(page) # 隐藏 Playwright 特征
                 try:
-                    xq.log(f"扫描店铺: {vid}", "INFO")
+                    xq.log(f"正在扫描: {vid}", "INFO")
                     page.goto(f"https://shop.m.jd.com/shop/home?venderId={vid}", wait_until="networkidle", timeout=15000)
                     
                     fetch_script = f"""
@@ -190,21 +202,21 @@ def run_task():
                             token = re.search(r'token=([^&]+)', isv_url).group(1) if "token=" in isv_url else "N/A"
                             xq.log(f"🎯 命中店铺 {vid} | Token: {token}", "SUCCESS")
                         else:
-                            xq.log(f"店铺 {vid} 无目标活动", "INFO")
+                            xq.log(f"店铺 {vid} 未检测到目标活动", "INFO")
                     else:
-                        xq.log(f"店铺 {vid} 接口返回异常", "WARN")
+                        xq.log(f"店铺 {vid} 响应数据为空（可能 IP 被京东拦截）", "WARN")
 
                 except Exception as e:
-                    xq.log(f"处理店铺 {vid} 异常: {e}", "WARN")
+                    xq.log(f"页面操作异常: {vid} | {e}", "WARN")
                 finally:
                     page.close()
                 
-                time.sleep(1) # 店铺间基础停顿
+                time.sleep(1.5) # 店铺间微小停顿
 
         finally:
             if browser: browser.close()
             if current_white_ip: xq.del_whitelist(current_white_ip)
-            xq.log(f"全部任务结束，清理完成。", "INFO")
+            xq.log("脚本执行完毕，资源已安全回收。", "INFO")
 
 if __name__ == "__main__":
     run_task()
