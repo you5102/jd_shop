@@ -1,14 +1,19 @@
-name: JD Shop Scanner (SOCKS5 Proxy)
+name: JD Shop Scanner (No Proxy Stealth Mode)
+
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 手动触发
   schedule:
-    - cron: '0 */1 * * *'
+    - cron: '0 */2 * * *' # 每 2 小时运行一次
 
 jobs:
-  run-task:
+  run-scanner:
     runs-on: ubuntu-latest
+    
+    # 设置超时时间，防止脚本异常卡死消耗额度
+    timeout-minutes: 15
+
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -16,15 +21,23 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install "requests[socks]" playwright playwright-stealth
+          pip install playwright playwright-stealth
+          # 安装 Chromium 浏览器及其依赖
           playwright install chromium
+          playwright install-deps chromium
 
-      - name: Run Script
+      - name: Run JD Stealth Scanner
+        # 如果脚本中使用了 secrets（比如通知 Token），请在此处配置
         env:
-          PROXY_INFO: ${{ secrets.PROXY_INFO }}
-          # 建议也将 SOCKS5 地址存入 Secrets
-          SOCKS5_PROXY: ${{ secrets.SOCKS5_PROXY }} 
-
+          PYTHONUNBUFFERED: "1" # 实时输出日志，方便观察连续报错情况
         run: python -u jd_fetch_playwright.py
+
+      - name: Upload Logs (Optional)
+        if: always() # 无论成功失败都保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-logs
+          path: ./*.log
+        
