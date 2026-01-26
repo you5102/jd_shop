@@ -39,7 +39,7 @@ def get_decoded_account():
         if not raw_data: return None
         decoded_bytes = base64.b64decode(raw_data)
         accounts = json.loads(decoded_bytes.decode('utf-8'))
-        return accounts[0] if isinstance(accounts, list) else accounts
+        return accounts[3] if isinstance(accounts, list) else accounts
     except Exception as e:
         log(f"账号解码失败: {e}", "ERROR")
         return None
