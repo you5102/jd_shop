@@ -40,10 +40,10 @@ async def getshopinfo(v_id, retrytimes=1, waitsecond=2, timeout=10):
             if response.status_code == 200:
                 res_json = response.json()
                 shop_info = res_json.get("data", {}).get("shopInfo", {})
-                if shop_info and shop_info.get("shopId") and shop_info.get("shopName"):
+                if shop_info and shop_info.get("shopId"):
                     return {
-                        "shopId": str(shop_info.get("shopId", "")),
-                        "shopName": shop_info.get("shopName", "")
+                        "shopId": str(shop_info.get("shopId", "000")),
+                        "shopName": shop_info.get("shopName", "已退店")
                     }, 200
                 return None, 200
             return None, response.status_code
