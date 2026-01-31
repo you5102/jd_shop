@@ -65,7 +65,7 @@ async def run_task():
             content = "".join(c for c in f.read() if ord(c) >= 32 or c in "\n\r\t")
             data = json.loads(content, strict=False)
 
-    v_keys = list(.keys())
+    v_keys = list(data.keys())
     log(f"✅ 加载成功，共 {len(v_keys)} 条数据")
 
     processed_count = 0
