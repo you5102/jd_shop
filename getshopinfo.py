@@ -53,19 +53,19 @@ async def run_task():
         return
 
     # 容错读取 JSON
-    log("📂 正在加载 data.json...")
+    log("📂 正在加载 .json...")
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            data = json.loads(content, strict=False)
+             = json.loads(content, strict=False)
     except Exception as e:
         log(f"❌ JSON 加载失败: {e}，尝试强制清洗解析...")
         with open(file_path, 'r', encoding='utf-8') as f:
             # 清除非法控制字符 (ASCII 0-31)
             content = "".join(c for c in f.read() if ord(c) >= 32 or c in "\n\r\t")
-            data = json.loads(content, strict=False)
+             = json.loads(content, strict=False)
 
-    v_keys = list(data.keys())
+    v_keys = list(.keys())
     log(f"✅ 加载成功，共 {len(v_keys)} 条数据")
 
     processed_count = 0
@@ -78,7 +78,7 @@ async def run_task():
             log("🕒 时间接近 30 分钟上限，保存并退出...")
             break
 
-        item = data[v_key]
+        item = [v_key]
         
         # 结构清洗
         if "vender" in item:
@@ -93,7 +93,7 @@ async def run_task():
             result = await getshopinfo(v_key)
             
             if result:
-                data[v_key].update(result)
+                [v_key].update(result)
                 processed_count += 1
                 consecutive_failures = 0
                 log(f"✨ 成功: {result['shopName']}")
@@ -113,7 +113,7 @@ async def run_task():
                 log(f"ℹ️ 已跳过 {skip_count} 条无需更新的数据...")
 
     # 保存数据
-    log("💾 正在保存更新后的数据到 data.json...")
+    log("💾 正在保存更新后的数据到 shop_info.json...")
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
     log(f"🎉 处理完成，本次共更新 {processed_count} 条数据。")
