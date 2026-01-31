@@ -1,0 +1,35 @@
+name: getshopinfo
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天定时运行
+  workflow_dispatch:      # 支持手动触发运行
+
+jobs:
+  run-and-save:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install httpx
+
+      - name: Run Main Script
+        run: python getshopinfo.py
+
+      - name: Commit & Push Changes
+        run: |
+          git config --local user.email "bot@github.com"
+          git config --local user.name "DataBot"
+          git add data.json
+          # 检查是否有文件变动，有则提交
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: save updated shop data" && git push)
