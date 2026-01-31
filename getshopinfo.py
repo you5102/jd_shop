@@ -46,10 +46,10 @@ async def getshopinfo(v_id, retrytimes=2, waitsecond=2, timeout=10):
 async def run_task():
     start_time = time.time()
     max_runtime = 28 * 60  # 28分钟触发停止
-    file_path = 'data.json'
+    file_path = 'shop_info.json'
     
     if not os.path.exists(file_path):
-        log("❌ 错误: data.json 不存在")
+        log("❌ 错误: shop_info.json 不存在")
         return
 
     # 容错读取 JSON
