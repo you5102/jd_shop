@@ -57,7 +57,7 @@ async def run_task():
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-             = json.loads(content, strict=False)
+             data = json.loads(content, strict=False)
     except Exception as e:
         log(f"❌ JSON 加载失败: {e}，尝试强制清洗解析...")
         with open(file_path, 'r', encoding='utf-8') as f:
