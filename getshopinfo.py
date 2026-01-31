@@ -88,7 +88,7 @@ async def run_task():
         s_id = item.get("shopId", "")
         s_name = item.get("shopName", "")
         
-        if s_id == "" or not s_name or s_name == "NoName":
+        if s_id == "" or not s_id or not s_name or s_name == "" or s_name == "NoName":
             log(f"🔍 正在查询 [{v_key}]...")
             result = await getshopinfo(v_key)
             
