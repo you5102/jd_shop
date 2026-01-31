@@ -63,7 +63,7 @@ async def run_task():
         with open(file_path, 'r', encoding='utf-8') as f:
             # 清除非法控制字符 (ASCII 0-31)
             content = "".join(c for c in f.read() if ord(c) >= 32 or c in "\n\r\t")
-             = json.loads(content, strict=False)
+            data = json.loads(content, strict=False)
 
     v_keys = list(.keys())
     log(f"✅ 加载成功，共 {len(v_keys)} 条数据")
