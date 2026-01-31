@@ -127,7 +127,7 @@ async def run_task():
             else:
                 log(f"❓ 其他错误状态码: {status}")
 
-            await asyncio.sleep(1.5) # 频率限制
+            await asyncio.sleep(5) # 频率限制
         else:
             skip_count += 1
             if skip_count % 5000 == 0:
