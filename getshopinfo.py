@@ -70,6 +70,7 @@ async def run_task():
 
     processed_count = 0
     consecutive_failures = 0
+    skip_count = 0  # 新增：跳过计数
 
     for v_key in v_keys:
         # 时间检查
@@ -79,13 +80,14 @@ async def run_task():
 
         item = data[v_key]
         
-        # 结构清洗：删除内含的 vender 键
+        # 结构清洗
         if "vender" in item:
             del item["vender"]
 
         # 检查是否需要更新
         s_id = item.get("shopId", "")
         s_name = item.get("shopName", "")
+        
         if s_id == "" or not s_name or s_name == "NoName":
             log(f"🔍 正在查询 [{v_key}]...")
             result = await getshopinfo(v_key)
@@ -100,10 +102,15 @@ async def run_task():
                 log(f"🚫 失败: {v_key} (连续失败: {consecutive_failures})")
 
             if consecutive_failures >= 10:
-                log("❌ 触发熔断：连续 10 次无返回，保存退出。")
+                log("❌ 触发熔断：连续 10 次无返回。")
                 break
             
-            await asyncio.sleep(1.2) # 防止请求过频
+            await asyncio.sleep(1.2)
+        else:
+            # 如果不需要更新，增加跳过计数
+            skip_count += 1
+            if skip_count % 5000 == 0:  # 每跳过 5000 条打印一次，证明程序活着
+                log(f"ℹ️ 已跳过 {skip_count} 条无需更新的数据...")
 
     # 保存数据
     log("💾 正在保存更新后的数据到 data.json...")
