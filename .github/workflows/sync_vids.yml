@@ -33,4 +33,10 @@ jobs:
           git config --local user.email "bot@github.com"
           git config --local user.name "VidSyncBot"
           git add new_vid.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: sync new vids" && git push)
+          # 如果没有变化则退出，避免报错
+          git diff --quiet && git diff --staged --quiet || (
+            git commit -m "chore: sync new vids [skip ci]"
+            # 先拉取并变基，解决冲突
+            git pull --rebase origin main
+            git push origin main
+          )
