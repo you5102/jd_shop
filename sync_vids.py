@@ -8,7 +8,7 @@ import urllib.parse
 # 配置参数
 OLD_FILE = 'old_vid.json'
 NEW_FILE = 'new_vid.json'
-MAX_RUNTIME_MINS = 25      # 最大运行分钟数
+MAX_RUNTIME_MINS = 5      # 最大运行分钟数
 MAX_QUERY_COUNT = 5000     # 单词运行最大查询 vid 数量
 MAX_403_ERRORS = 10         # 允许的最大 403 报错次数
 
