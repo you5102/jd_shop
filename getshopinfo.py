@@ -42,7 +42,7 @@ async def getshopinfo(v_id, retrytimes=1, waitsecond=2, timeout=10):
                 shop_info = res_json.get("data", {}).get("shopInfo", {})
                 if shop_info and shop_info.get("shopId"):
                     return {
-                        "shopId": str(shop_info.get("shopId", "")|"000"),
+                        "shopId": str(shop_info.get("shopId", "")|000),
                         "shopName": shop_info.get("shopName", "")|"已退店"
                     }, 200
                 return None, 200
