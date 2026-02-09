@@ -5,7 +5,7 @@ import re
 import random
 import sys
 from playwright.sync_api import sync_playwright
-from .depend/tk2cf import DataWorkerClient
+
 # 尝试导入混淆库
 try:
     from playwright_stealth import stealth_sync
